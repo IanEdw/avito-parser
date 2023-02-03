@@ -1,5 +1,7 @@
 package ru.ianedw.avitoparser.models;
 
+import java.util.Objects;
+
 public class Post {
     private String name;
     private int price;
@@ -30,5 +32,20 @@ public class Post {
 
     public void setLink(String link) {
         this.link = link;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Post post = (Post) o;
+
+        return Objects.equals(link, post.link);
+    }
+
+    @Override
+    public int hashCode() {
+        return link != null ? link.hashCode() : 0;
     }
 }

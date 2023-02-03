@@ -9,6 +9,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import ru.ianedw.avitoparser.util.CustomLinkedHashMap;
+import ru.ianedw.avitoparser.models.Update;
 import ru.ianedw.avitoparser.models.Post;
 import ru.ianedw.avitoparser.models.Target;
 import ru.ianedw.avitoparser.services.TargetsService;
@@ -19,112 +21,154 @@ import java.util.*;
 @Component
 public class Parser {
     Logger log = LoggerFactory.getLogger(Parser.class);
-    private final Map<Integer, List<Post>> lastPosts;
+    private final Map<Integer, CustomLinkedHashMap<String, Post>> availablePosts;
     private final TargetsService targetService;
-    private List<Target> targets;
+    private Set<Target> targets;
 
     @Autowired
     public Parser(TargetsService targetService) {
         this.targetService = targetService;
-        lastPosts = new HashMap<>();
+        availablePosts = new HashMap<>();
+        loadAvailablePosts();
     }
 
-
-    public Map<Integer, List<Post>> getLastPosts(List<Integer> ids) {
-        Map<Integer, List<Post>> result = new HashMap<>();
-        for (Integer id : ids) {
-            if (lastPosts.containsKey(id)) {
-                result.put(id, lastPosts.get(id));
-            }
-        }
-        return result;
+    public Update getUpdate() {
+        Update update = new Update();
+        update.setTargetPosts(availablePosts);
+        return update;
     }
 
-    @Scheduled(initialDelay = 1000L, fixedDelay = 10000L)
-    private void updateLastPosts() {
+    @Scheduled(initialDelay = 5000, fixedDelay = 20000)
+    private void updateAvailablePosts() {
         updateTargets();
         for (Target target : targets) {
-            List<Post> list = parseLastPosts(target.getLink());
-            if (list == null) {
+            parsePosts(target);
+        }
+    }
+
+    private void loadAvailablePosts() {
+        updateTargets();
+        for (Target target : targets) {
+            loadAvailablePostsByTarget(target);
+        }
+    }
+
+    private void loadAvailablePostsByTarget(Target target) {
+        CustomLinkedHashMap<String, Post> availablePosts = new CustomLinkedHashMap<>(75);
+        Elements itemCatalog = getItemsCatalogFromTarget(target);
+        for (Element element : itemCatalog) {
+            Post post = parsePost(element, -1);
+            if (post != null) {
+                availablePosts.putItFirst(post.getLink(), post);
+            }
+        }
+        this.availablePosts.put(target.getId(), availablePosts);
+    }
+
+    private void parsePosts(Target target) {
+        int targetId = target.getId();
+        CustomLinkedHashMap<String, Post> availablePosts = this.availablePosts.get(targetId);
+
+        Elements itemsCatalog = getItemsCatalogFromTarget(target);
+
+        for (Element element : itemsCatalog) {
+            Post post = parsePost(element, targetId);
+            if (post == null) {
                 continue;
             }
-            lastPosts.put(target.getId(), list);
+            availablePosts.put(post.getLink(), post);
         }
+
+        this.availablePosts.put(targetId, availablePosts);
+        log.info("Размер availablePosts для цели " + targetId + ": " + availablePosts.size());
     }
 
-    private List<Post> parseLastPosts(String link) {
+    private Elements getItemsCatalogFromTarget(Target target) {
+        Document document = null;
         try {
-            Document document = Jsoup.connect(link).get();
-            List<Post> result = new ArrayList<>();
-            Elements itemsCatalog = getCatalog(document).getElementsByAttributeValue("data-marker", "item");
-
-            for (Element item : itemsCatalog) {
-                Post post = getPost(item);
-                if (post == null) {
-                    continue;
-                }
-                result.add(getPost(item));
-            }
-
-            return result;
+            document = Jsoup.connect(target.getLink()).get();
         } catch (IOException e) {
-            log.warn("Ошибка соединения");
-            return null;
-        } catch (NullPointerException e) {
-            log.warn("getCatalog() вернул null");
-            log.warn(Arrays.toString(e.getStackTrace()));
-            return null;
+            log.warn("Ошибка соединения JSOUP");
         }
-    }
 
-    private Post getPost(Element element) {
+        Element d = null;
         try {
-            Post result = new Post();
-            String name = element.getElementsByTag("h3").html();
+            d = document.getElementsByAttributeValue("data-marker", "catalog-serp").stream().findAny().orElseThrow();
+        } catch (NoSuchElementException | NullPointerException e) {
+            log.warn("Ошибка парсинга каталога");
+        }
 
-            Element elPrice = element.getElementsByAttributeValue("itemprop", "price").first();
-            int price = Integer.parseInt(Objects.requireNonNull(elPrice).attr("content"));
+        Elements itemsCatalog = null;
+        try {
+            itemsCatalog = d.getElementsByAttributeValue("data-marker", "item");
+            log.info("Размер считанного каталога: " + itemsCatalog.size());
+        } catch (NullPointerException e) {
+            log.warn("Ошибка парсинга объявлений из каталога");
+        }
+        return itemsCatalog;
+    }
 
+    private Post parsePost(Element element, int targetId) {
+
+        String link = null;
+        try {
             Element elLink = element.getElementsByTag("a").first();
-            String link = "https://www.avito.ru" + Objects.requireNonNull(elLink).attr("href");
-            result.setLink(link);
-            result.setPrice(price);
-            result.setName(name);
-            return result;
-        } catch (NumberFormatException | NullPointerException e) {
-            log.warn("Ошибка парсинга цены или ссылки: " + element.toString());
-            log.warn(Arrays.toString(e.getStackTrace()));
-            return null;
+            link = "https://www.avito.ru" + Objects.requireNonNull(elLink).attr("href");
+        } catch (NullPointerException e) {
+            log.warn("Ошибка парсинга ссылки");
+        }
+
+        if (targetId > 0) {
+            if (isLinkContained(targetId, link)) {
+                return null;
+            }
+        }
+
+        Post post = new Post();
+        String name = null;
+        try {
+            name = element.getElementsByTag("h3").html();
+        } catch (NullPointerException e) {
+            log.warn("Ошибка парсинга имени");
+        }
+
+        Element elPrice = null;
+        try {
+            elPrice = element.getElementsByAttributeValue("itemprop", "price").first();
+        } catch (NullPointerException e) {
+            log.warn("Ошибка парсинга цены");
+        }
+
+        int price = 0;
+        try {
+            price = Integer.parseInt(Objects.requireNonNull(elPrice).attr("content"));
+        } catch (NumberFormatException e) {
+            log.warn("Ошибка парсинга цены Integer.parseInt()");
+        }
+
+        post.setLink(link);
+        post.setPrice(price);
+        post.setName(name);
+
+        return post;
+    }
+
+    private boolean isLinkContained(int targetId, String link) {
+        return availablePosts.get(targetId).containsKey(link);
+    }
+    private void updateTargets() {
+        List<Target> updatedList = targetService.findAll();
+        if (targets == null) {
+            targets = new HashSet<>(updatedList);
+            return;
+        }
+
+        if (updatedList.size() != targets.size()) {
+            for (Target target : updatedList) {
+                if (targets.add(target)) {
+                    loadAvailablePostsByTarget(target);
+                }
+            }
         }
     }
-
-    private Element getCatalog(Document document) {
-        return document.getElementsByAttributeValue("data-marker", "catalog-serp").stream().findAny().orElse(null);
-    }
-
-    private void updateTargets() {
-        targets = targetService.findAll();
-    }
-    //    private void smartUpdate() throws IOException {
-//        updateTargets();
-//        for (Target target : targets) {
-//            Map<String, Post> currentTargetMap;
-//            if (lastPosts.containsKey(target.getId())) {
-//                currentTargetMap = lastPosts.get(target.getId());
-//            } else {
-//                currentTargetMap = new HashMap<>();
-//            }
-//            Element catalog = getCatalog(Jsoup.connect(target.getLink()).get());
-//            for (Element item : catalog.getElementsByAttributeValue("data-marker", "item")) {
-//                String link = "https://avito.ru" + item.getElementsByTag("a").first().attr("href");
-//                if (currentTargetMap.containsKey(link)) {
-//                    continue;
-//                } else {
-//                    if (currentTargetMap.size() > 20) {
-//                        currentTargetMap.values().stream().min()
-//                    }
-//                }
-//            }
-//        }
-//    }
 }

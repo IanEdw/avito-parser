@@ -27,8 +27,8 @@ public class TargetsService {
     }
 
     @Transactional
-    public void save(Target target) {
-        repository.save(target);
+    public Target save(Target target) {
+        return repository.save(target);
     }
 
     @Transactional

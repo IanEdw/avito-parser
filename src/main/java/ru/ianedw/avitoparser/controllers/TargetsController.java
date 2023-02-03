@@ -12,27 +12,26 @@ import java.util.List;
 @RestController
 @RequestMapping("/targets")
 public class TargetsController {
-    private final TargetsService linkService;
+    private final TargetsService targetsService;
     Logger log = LoggerFactory.getLogger(TargetsController.class);
 
     @Autowired
-    public TargetsController(TargetsService linkService) {
-        this.linkService = linkService;
+    public TargetsController(TargetsService targetsService) {
+        this.targetsService = targetsService;
     }
 
     @GetMapping
     public List<Target> getAllLinks() {
-        return linkService.findAll();
+        return targetsService.findAll();
     }
 
     @PostMapping
     public Target createTarget(@RequestBody Target postedTarget) {
         String link = postedTarget.getLink();
         if (link.contains("https://www.avito.ru")) {
-            Target target = linkService.findOneByLink(link);
+            Target target = targetsService.findOneByLink(link);
             if (target == null) {
-                linkService.save(postedTarget);
-                return linkService.findOneByLink(link);
+                return targetsService.save(postedTarget);
             } else {
                 return target;
             }
