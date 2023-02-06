@@ -9,7 +9,7 @@ import ru.ianedw.avitoparser.services.UpdateService;
 
 
 @RestController
-@RequestMapping("/posts")
+@RequestMapping("/updates")
 public class UpdateController {
     private final UpdateService updateService;
 

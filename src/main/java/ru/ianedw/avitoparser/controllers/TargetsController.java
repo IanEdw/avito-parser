@@ -22,7 +22,7 @@ public class TargetsController {
 
     @GetMapping
     public List<Target> getAllLinks() {
-        return targetsService.findAll();
+        return targetsService.getAll();
     }
 
     @PostMapping
