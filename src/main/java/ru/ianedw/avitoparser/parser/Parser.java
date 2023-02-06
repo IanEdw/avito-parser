@@ -83,10 +83,17 @@ public class Parser {
             return;
         }
 
+        TreeSet<Post> targetPosts = availablePosts.get(targetId);
+
         post.setName(findPostName(parentExpression));
         post.setPrice(findPostPrice(parentExpression));
         post.setPublicationTime(findPostPublicationTime(parentExpression));
 
+        if (targetPosts.size() > 75) {
+            for (int i = 0; i < 10; i++) {
+                targetPosts.pollFirst();
+            }
+        }
         availablePosts.get(targetId).add(post);
     }
 
@@ -124,9 +131,6 @@ public class Parser {
         yPointInBrowser = 0;
         availablePosts.put(target.getId(), posts);
     }
-
-
-
     private Post loadPost(String parentBlockXPathExpression, int blockNumber) {
         String parentExpression = String.format(parentBlockXPathExpression + "[%d]", blockNumber);
 
@@ -138,6 +142,8 @@ public class Parser {
 
         return post;
     }
+
+
 
     private String findPostName(String parentExpression) {
         return browser.findElement(By.xpath( parentExpression + "//a[@data-marker='item-title']")).getAttribute("title");
