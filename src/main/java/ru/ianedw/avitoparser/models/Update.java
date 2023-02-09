@@ -1,19 +1,18 @@
 package ru.ianedw.avitoparser.models;
 
 import java.util.Map;
-import java.util.TreeSet;
 
 public class Update {
-    private Map<Integer, TreeSet<Post>> targetPosts;
+    private Map<Integer, Map<String, Post>> targetPosts;
 
     public Update() {
     }
 
-    public Map<Integer, TreeSet<Post>> getTargetPosts() {
+    public Map<Integer, Map<String, Post>> getTargetPosts() {
         return targetPosts;
     }
 
-    public void setTargetPosts(Map<Integer, TreeSet<Post>> targetPosts) {
+    public void setTargetPosts(Map<Integer, Map<String, Post>> targetPosts) {
         this.targetPosts = targetPosts;
     }
 }

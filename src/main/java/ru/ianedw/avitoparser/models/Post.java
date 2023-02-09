@@ -1,13 +1,11 @@
 package ru.ianedw.avitoparser.models;
 
-import java.time.LocalDateTime;
 import java.util.Objects;
 
 public class Post {
     private String name;
     private int price;
     private String link;
-    private LocalDateTime publicationTime;
 
     public Post() {
     }
@@ -34,14 +32,6 @@ public class Post {
 
     public void setLink(String link) {
         this.link = link;
-    }
-
-    public LocalDateTime getPublicationTime() {
-        return publicationTime;
-    }
-
-    public void setPublicationTime(LocalDateTime publicationTime) {
-        this.publicationTime = publicationTime;
     }
 
     @Override

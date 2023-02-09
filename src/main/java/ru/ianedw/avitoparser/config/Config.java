@@ -26,7 +26,7 @@ public class Config {
     public WebDriver webDriver() {
         System.setProperty("webdriver.chrome.driver", Objects.requireNonNull(environment.getProperty("selenium.chrome.driver")));
         WebDriver driver = new ChromeDriver();
-        driver.manage().window().setSize(new Dimension(1050, 750));
+        driver.manage().window().setSize(new Dimension(1100, 900));
         return driver;
     }
 
