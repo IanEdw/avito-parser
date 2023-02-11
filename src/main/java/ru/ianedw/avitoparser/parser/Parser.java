@@ -64,7 +64,7 @@ public class Parser {
         try {
             findButton = browser.findElement(By.xpath("//button[@data-marker='search-form/submit-button']"));
             actions.click(findButton).build().perform();
-        } catch (NoSuchElementException e) {
+        } catch (NoSuchElementException | TimeoutException e) {
             browser.get(target.getLink());
         }
         List<WebElement> postsOnPage = browser.findElements(By.xpath(xpathExpression));
