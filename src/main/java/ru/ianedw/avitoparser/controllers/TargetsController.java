@@ -39,4 +39,9 @@ public class TargetsController {
             return null;
         }
     }
+
+    @DeleteMapping
+    public void deleteTarget(@RequestParam int id) {
+        targetsService.deleteTargetById(id);
+    }
 }

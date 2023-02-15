@@ -35,4 +35,8 @@ public class TargetsService {
     public void deleteByLink(String link) {
         repository.deleteTargetByLink(link);
     }
+
+    public void deleteTargetById(int id) {
+        repository.deleteById(id);
+    }
 }
